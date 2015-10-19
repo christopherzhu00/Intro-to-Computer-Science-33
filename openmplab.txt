@@ -1,0 +1,179 @@
+//Christopher Zhu
+// UID: 104455996
+// OpenMP Lab
+
+Start off by familiarizing with OpenMp by watching the tutorial videos on Youtube 
+and reading the slides at http://openmp.org/mp-documents/Intro_To_OpenMP_Mattson.pdf.
+
+First download the openmplab.tgz from the CCLE website and extract onto the linux server 
+using WINSCP. Afterwards, just check to see what is going on by entering the lines:
+make seq		// compiles the program
+./seq			// runs the program
+
+as well as testing the lines:
+make omp
+./omp
+
+
+
+Now is when I include the timing script provided TA, Eric Kim. This is done by 
+going to his website http://eric-kim.net/cs33_page/, and putting the python code 
+into a vim file on the linux server.
+
+Then I test the original code with both seq and omp to see how it works out. 
+The results are as seen below:
+[christoz@lnxsrv01 ~/openmplab]$ python esttime.py ./seq 10
+Running './seq' 10 times...
+  [i=1/10]: FUNC_TIME: 0.600028
+  [i=2/10]: FUNC_TIME: 0.600016
+  [i=3/10]: FUNC_TIME: 0.599668
+  [i=4/10]: FUNC_TIME: 0.600217
+  [i=5/10]: FUNC_TIME: 0.599968
+  [i=6/10]: FUNC_TIME: 0.600124
+  [i=7/10]: FUNC_TIME: 0.600001
+  [i=8/10]: FUNC_TIME: 0.610835
+  [i=9/10]: FUNC_TIME: 0.599013
+  [i=10/10]: FUNC_TIME: 0.60019
+==== Statistics (in seconds) ====
+Mean: 0.601006 Std: 0.00329335524959 Median: 0.600022
+  (Min: 0.599013 Max: 0.610835)
+min(mean, median) = 0.600022
+Done.
+
+
+[christoz@lnxsrv01 ~/openmplab]$ python esttime.py ./omp 10
+Running './omp' 10 times...
+  [i=1/10]: FUNC_TIME: 0.606952
+  [i=2/10]: FUNC_TIME: 0.61068
+  [i=3/10]: FUNC_TIME: 0.602638
+  [i=4/10]: FUNC_TIME: 0.610659
+  [i=5/10]: FUNC_TIME: 0.644344
+  [i=6/10]: FUNC_TIME: 0.624059
+  [i=7/10]: FUNC_TIME: 0.632999
+  [i=8/10]: FUNC_TIME: 0.64038
+  [i=9/10]: FUNC_TIME: 0.631763
+  [i=10/10]: FUNC_TIME: 0.638089
+==== Statistics (in seconds) ====
+Mean: 0.6242563 Std: 0.0145727466186 Median: 0.627911
+  (Min: 0.602638 Max: 0.644344)
+min(mean, median) = 0.6242563
+Done.
+
+
+By looking at the results, we can see that it normally takes 0.6 seconds on average. 
+Afterwards, I make sure that I switch to linux server 6 by using the command:
+ssh lnxsrv06 in order to ensure that I get accurate results since the other servers 
+can become laggy due to the fact that many students are also trying to perform the lab 
+which could give me bad data. 
+
+Now, I attempt to incorporate parallelism into the func.c source code by using 
+the line:#pragma omp parallel for. I first look at func1 because it appears that it 
+does the mosst things since it has a lot of for loops with complicated actions. I 
+introduce the line "#pragma omp parallel for" right before the first for loop since 
+the variable "i" within the for loop is automatically private for the threads because 
+it is the variable within the for loop. The results are seen as below.
+
+
+[christoz@lnxsrv06 ~/openmplab]$ python esttime.py ./omp 10
+Running './omp' 10 times...
+  [i=1/10]: FUNC_TIME: 0.603128
+  [i=2/10]: FUNC_TIME: 0.599434
+  [i=3/10]: FUNC_TIME: 0.600012
+  [i=4/10]: FUNC_TIME: 0.614906
+  [i=5/10]: FUNC_TIME: 0.599478
+  [i=6/10]: FUNC_TIME: 0.599162
+  [i=7/10]: FUNC_TIME: 0.599994
+  [i=8/10]: FUNC_TIME: 0.600173
+  [i=9/10]: FUNC_TIME: 0.599045
+  [i=10/10]: FUNC_TIME: 0.598874
+==== Statistics (in seconds) ====
+Mean: 0.6014206 Std: 0.00464001368963 Median: 0.599736
+  (Min: 0.598874 Max: 0.614906)
+min(mean, median) = 0.599736
+Done.
+
+Based on the results, we can see that adding the line of code improved the speed 
+by a little bit. Now we work on the next outer for loop which includes a lot of 
+commands that would take a lot of time. I introduce parallelism by using the line:
+"#pragma omp parallel for private(j, index_X, index_Y)" before the for loop because 
+the inner for loop utilizes j, index_X. and index_Y which need to be private variables 
+for each thread or else the values will become messed up which would result in bad 
+results. Therefore by adding "private" we are able to make sure that the other variables 
+are private for the threads. The variable "i" within the for loop is by default private 
+so we do not need to worry about that one. Using the same timescript, I obtain the following 
+results:
+
+[christoz@lnxsrv06 ~/openmplab]$ python esttime.py ./omp 10
+Running './omp' 10 times...
+  [i=1/10]: FUNC_TIME: 0.55711
+  [i=2/10]: FUNC_TIME: 0.288223
+  [i=3/10]: FUNC_TIME: 0.28877
+  [i=4/10]: FUNC_TIME: 0.288285
+  [i=5/10]: FUNC_TIME: 0.287072
+  [i=6/10]: FUNC_TIME: 0.442954
+  [i=7/10]: FUNC_TIME: 0.451111
+  [i=8/10]: FUNC_TIME: 0.287194
+  [i=9/10]: FUNC_TIME: 0.291477
+  [i=10/10]: FUNC_TIME: 0.28638
+==== Statistics (in seconds) ====
+Mean: 0.3468576 Std: 0.0940270760805 Median: 0.2885275
+  (Min: 0.28638 Max: 0.55711)
+min(mean, median) = 0.2885275
+Done.
+
+This parallelism greatly enhanced the performance of the program. Next I move on the next 
+function which I think takes up the most time in order to get a better performance. By looking 
+at the code, I pick func5 to introduce parallelism to see if I get better results. 
+I add the lines of code:"#pragma omp parallel for private(i)" since the body of 
+the for loop utilizes variable "i" so I need to make "i" private in order to obtain 
+make the function perform as intended. Since the for loop has j in its declaration, 
+it is inherently private and thus I do not need to worry about it. Using the 
+same time script, I obtain the results as seen below:
+
+[christoz@lnxsrv06 ~/openmplab]$ python esttime.py ./omp 10
+Running './omp' 10 times...
+  [i=1/10]: FUNC_TIME: 0.165443
+  [i=2/10]: FUNC_TIME: 0.61366
+  [i=3/10]: FUNC_TIME: 0.172009
+  [i=4/10]: FUNC_TIME: 0.137292
+  [i=5/10]: FUNC_TIME: 0.136799
+  [i=6/10]: FUNC_TIME: 0.136663
+  [i=7/10]: FUNC_TIME: 0.136095
+  [i=8/10]: FUNC_TIME: 0.136609
+  [i=9/10]: FUNC_TIME: 0.135921
+  [i=10/10]: FUNC_TIME: 0.136903
+==== Statistics (in seconds) ====
+Mean: 0.1907394 Std: 0.14154947672 Median: 0.136851
+  (Min: 0.135921 Max: 0.61366)
+min(mean, median) = 0.136851
+Done.
+
+This also sees an improvement to the time which is good. Now I introduce parallelism 
+to the next for loop by putting the code "#pragma omp parallel for" before the second 
+for loop. I do not need any private variables since it uses just "i" and "i" is default 
+private when using pragma since its declared in the loop. The results after using the 
+time script is seen as below:
+
+[christoz@lnxsrv06 ~/openmplab]$ python esttime.py ./omp 10
+Running './omp' 10 times...
+  [i=1/10]: FUNC_TIME: 1.204962
+  [i=2/10]: FUNC_TIME: 1.194754
+  [i=3/10]: FUNC_TIME: 0.096168
+  [i=4/10]: FUNC_TIME: 0.097377
+  [i=5/10]: FUNC_TIME: 0.097895
+  [i=6/10]: FUNC_TIME: 0.095549
+  [i=7/10]: FUNC_TIME: 0.09669
+  [i=8/10]: FUNC_TIME: 0.096881
+  [i=9/10]: FUNC_TIME: 0.429723
+  [i=10/10]: FUNC_TIME: 0.096832
+==== Statistics (in seconds) ====
+Mean: 0.3506831 Std: 0.435867062267 Median: 0.097129
+  (Min: 0.095549 Max: 1.204962)
+min(mean, median) = 0.097129
+Done.
+
+This is the last one I had done since attempting to add more pragma's to other functions 
+only slowed down the processes. By doing the math, the program is now 6.2x faster.
+
+
+
