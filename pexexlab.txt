@@ -1,0 +1,161 @@
+Christopher Zhu
+UID:104455996
+
+cd ~eggert/src/emacs-24.5/src			// change directory 
+ls										// shows the files in the current directory
+
+
+First Trace: 103 Lines
+Starting the program
+gdb --args ~eggert/bin32/bin/emacs-24.5 -batch -eval 'print (*37 -26))'	//Failed because spaces are case sensitive
+gdb --args ~eggert/bin32/bin/emacs-24.5 -batch -eval 'print(*37 -26))'	//Failed because spaces are case sensitive
+gdb --args ~eggert/bin32/bin/emacs-24.5 -batch -eval 'print (* 37 -26))' //loads up gdb
+
+set disassemble-next-line on	// show disassembly of the next line each time it stops at a breakpoint
+break Ftimes		// creates breapoints until it reaches Ftimes
+run					// starts the program										
+
+Inside the Program:
+stepi				// performs 1 step
+transitioned into: si   // short for stepi
+
+info registers			// displays each of the registers at the time
+transitioned into: info reg		// short of info registers
+
+x/4xw $esp			// look at the first 4 words starting from esp
+x/4xw				//Failed because did not specify at esp
+
+Used to calculate memory changes:
+D(Rb, Ri, S)
+D = displacement (must be immediate)
+Rb = base register
+Ri = index register
+S = scaling factor
+Mem[Rb + D + Ri*S]
+
+x/4xw $esp		// used to examine 4 words in the memory at esp
+
+quit 			// used to exit in order to restart after missing a line
+
+eip = 5
+mov eip, eax
+eax = 5
+mov eip, (eax)
+M[eax] = 5 
+
+Second Trace: 107 Lines
+gdb --args ~eggert/bin64/bin/emacs-24.5 -batch -eval 'print (* 37 -26))' //loads up gdb
+
+set disassemble-next-line on	// show disassembly of the next line each time it stops at a breakpoint
+break Ftimes		// creates breapoints until it reaches Ftimes
+run					// starts the program	
+
+Inside the Program:
+stepi				// performs 1 step
+transitioned into: si   // short for stepi
+si50		// Failed, case sensitive should be si 50
+
+info registers			// displays each of the registers at the time
+transitioned into: info reg		// short of info registers
+
+x/4xg 0x7fffffffdab0		// look at the first 4 giant words at the corresponding memory location
+
+Third Trace: 101 Lines
+gdb --args ~eggert/bin64/bin/emacs-24.5 -batch -eval 'print (* 536870911 536870911))' //loads up gdb with most-positive-fixnum
+set disassemble-next-line on	// show disassembly of the next line each time it stops at a breakpoint
+break Ftimes		// creates breapoints until it reaches Ftimes
+run					// starts the program	
+
+stepi				// performs 1 step
+transitioned into: si   // short for stepi
+si 20		// take 20 steps
+
+info registers			// displays each of the registers at the time
+transitioned into: info reg		// short of info registers
+
+up arrow key gets last performed action
+
+x/4xw $esp 		// checks memory at esp
+
+x/4xw 0xffffcd2c	// checks memory at esp+c where esp=0xffffcd20 since 0 + c = c
+
+ctrl z // kills the program
+
+x/4xw 0xffffcd64	// checks memory at esp+4 where esp=0xffffcd20 since 0 + 4 = 4
+
+Examine Integer Overflow Handling
+
+ 
+cd ~ //changes directory to home
+touch intovf.c 		// creates intovf.c onto home
+~eggert/bin32/bin/emacs-24.5 intovf.c	//opens the file using emacs 
+
+Copy paste following code into intovf.c:
+#include <limits.h>
+  int big = INT_MAX;
+  int
+  testovf (void)
+  {
+    return big + 1 < big;
+  }
+C-c C-x		// Failed, does not exit since wrong syntax
+C-x C-c to exit out of program and press y to save the code.
+
+case 1:
+gcc -m32 -S -O2 intovf.c			// gets assembly code for intovf.c
+~eggert/bin32/bin/emacs-24.5 intovf.s	// opens the assembly code file
+delete headers to isolate assembly code:
+
+Obtain assembly code:
+	pushl   %ebp
+	xorl    %eax, %eax
+    movl    %esp, %ebp
+    popl    %ebp
+    ret
+
+rm intovf.s // make sure duplicates aren't made since we check multiple cases
+
+case 2:
+gcc -m32 -S -O2 -ftrapv intovf.c	// gets assembly code for intovf.c while utilizing ftrapv
+~eggert/bin32/bin/emacs-24.5 intovf.s	// opens the assembly code file
+delete headers to isolate assembly code
+
+Obtain assembly code:	
+	pushl   %ebp
+	movl    %esp, %ebp
+	subl    $8, %esp
+	movl    big, %eax
+	leave
+
+	leal    1(%eax), %edx
+	cmpl    %edx, %eax
+	setg    %al
+	movzbl  %al, %eax
+	ret
+	
+rm intovf.s // make sure duplicates aren't made since we check multiple cases
+
+case 3:
+gcc -m32 -S -O2 -fwrapv intovf.c	// gets assembly code for intovf.c while utilizing fwrapv
+~eggert/bin32/bin/emacs-24.5 intovf.s	// opens the assembly code file
+delete headers to isolate assembly code
+
+Obtain assembly code:
+	movl    big, %eax
+	pushl   %ebp
+	movl    %esp, %ebp
+	popl    %ebp
+	
+	leal    1(%eax), %edx
+	cmpl    %edx, %eax
+	setg    %al
+	movzbl  %al, %eax
+	ret
+	
+Answers.txt 
+
+cd ~eggert/src/emacs-24.5/src/		// get to the corresponding directory with data.c source code
+vim data.c				// open data.c with vim
+page up button 		// causes a shift of 1 page of source code in the upwards direction
+page down button 	// causes a shift of 1 page of source code in the downwards direction
+clicking the line number to change the line number manually 			// Failure, doesn't actually do anything

@@ -1,0 +1,81 @@
+Christopher Zhu
+UID:104455996
+
+#include <limits.h>
+  int big = INT_MAX;
+  int
+  testovf (void)
+  {
+    return big + 1 < big;
+  }
+ create intovf.c with the following code.
+ compile and obtain assembly code into a intovf.s file by using:
+ -m32 makes the program run on x86 
+ -S prints us assembly code, also needed since there is no main function
+ case 1 (O2 optimization):
+ gcc -m32 -S -O2 intovf.c
+ 
+ case 2 (O2 optimization and ftrapv):
+ gcc -m32 -S -O2 -ftrapv intovf.c
+ 
+ case 3 (O2 optimization and fwrapv):
+ gcc -m32 -S -O2 -fwrapv intovf.c
+ 
+ Assembly Code after removing headers:
+ Case 1:
+	pushl   %ebp
+	xorl    %eax, %eax
+    movl    %esp, %ebp
+    popl    %ebp
+    ret
+	
+Case 2:
+	pushl   %ebp
+	movl    %esp, %ebp
+	subl    $8, %esp
+	movl    big, %eax
+	leave
+
+	leal    1(%eax), %edx
+	cmpl    %edx, %eax
+	setg    %al
+	movzbl  %al, %eax
+	ret
+	
+Case 3:
+	movl    big, %eax
+	pushl   %ebp
+	movl    %esp, %ebp
+	popl    %ebp
+	
+	leal    1(%eax), %edx
+	cmpl    %edx, %eax
+	setg    %al
+	movzbl  %al, %eax
+	ret
+
+Description of the cases:
+Case 1 always returns 0 since it does xorl %eax with %eax which always returns 0. The compiler realizes
+by using the O2 optimization that big + 1 will always be bigger than big and thus optimizes
+the code to just perform a xorl with two same values in order to return 0.
+
+Case 2 always returns 1 since it has big + 1 moved into edx and then compares big + 1 to big.
+Therefore, it sets %al to 1 and then finally moves 1 into eax in order to return 1. Under O2
+optimization, ftrapv does not perform as intended and behaves the same way the fwrapv does during
+integer overflow. Because of this, after it sets up the stack, the second part of the assembly code
+starting from leal 1(%eax), %edx is the same for both case 2 and case 3. O2 makes ftrapv
+perform not as intended since it becomes optimized away and thus gets rid of the condition to trap.
+
+Case 3 always returns 1 since it has big + 1 moved into edx and then compares big + 1 to big.
+Therefore, it sets %al to 1 and then finally moves 1 into eax in order to return 1. Under O2
+optimization, fwrapv performs as intended and wraps around which is why it returns 1.
+
+The differences that case 2 and case 3 have is the way they each set up their stacks respectively. However,
+the stacks are never referenced in the latter parts of the assembly code so it does not matter
+how the stacks were set up and both return the same value since the rest of the assembly code is the same.
+	
+	
+	
+	
+	
+	

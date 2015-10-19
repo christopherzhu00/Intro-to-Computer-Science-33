@@ -1,0 +1,63 @@
+Christopher Zhu
+UID:104455996
+
+1. The instructions in the third traced did not produce the correct mathematical result because 
+although most of the trace for both 1 and 3 are the same, trace 3 jumped at the overflow check 
+while trace 1 did not. The code where they start to differ is after this assembly line:
+0x08120a82 <arith_driver+354>data.c:2638	js 0x8120b50 <arith_driver+560>
+The source code shows that line 2638 is where the the overflow check if statement is at and thus
+because trace 3 overflows, it must go through the if statement code:
+if (INT_MULTIPLY_OVERFLOW (accum, next))
+{
+	EMACS_UINT a = accum, b = next, ab = a * b;
+	overflow = 1;
+	accum = ab & INTMASK;
+}
+
+2. Based on the count of instructions, trace 3 is the most efficient since it has the least amount
+of lines (101 as compared to 103 and 107). Trace 3 directly manipulates memory which directly leads
+to a smaller amount of lines to perform a certain action while trace 2 manipulates registers which
+needs more lines in order to perform the same actions as directly manipulating memory.
+
+3. Similarly, trace 2 is the least efficient and has the most instructions (107 compared to 101 and 103)
+because since its using x86-64 registers, it is utilizing registers to manipulate data and thus 
+has more lines of push, move, and pop. These create more lines of assembly and thus based on the 
+count of instructions, makes trace 2 the least efficient. however, even though there are more 
+lines of code, manipulating registers is more efficient than manipulating memory itself.
+
+4. The number 536870911 is equal to (2^29) - 1 which a 30 bit integer. Similarly, (2^31) - 1 
+is the biggest number that Elisp on 32-bit can handle which means that elisp is using 2 bits for a purpose. Elisp
+uses the two bits as type tags to help differentiate the integer from something else such as a pointer.
+
+5. The two Emacs executables compiled with GCC's -O2 option and -ftrapv will basically doesn't 
+do anything because -O2 optimization optimizaes -ftrapv away and basically has it perform 
+the same as -fwrapv. Because ftrapv is not trapping, this is a big problem since we would
+want to program to stop if it overflows when we utilize ftrapv.
+
+6. Under -O2 optimization, -fwrapv still works shouldn't change the result. However, fwrapv
+causes the compiler to lose optimization as seen in the assembly code and should be checked
+whether the number of instructions increases which could be a problem.
+
+7. 
+On arith_driver line 2630, the source code is as follows:
+case Amult:
+	if (INT_MULTIPLY_OVERFLOW (accum, next))
+            {
+              EMACS_UINT a = accum, b = next, ab = a * b;
+              overflow = 1;
+              accum = ab & INTMASK;
+            }
+        else
+            accum *= next;
+        break;
+
+The if statement is supposed to be utilized to handle signed overflow since signed overflow is undefined
+while unsigned overflow is defined. Signed overflow is undefined since it makes the compiler choose 
+what happens. By utilizing -fwrapv, signed multiplication will become defined since 
+overflow will be wrapped around. Therefore, the if statement is unneeded since accum*=next will
+always be defined and work making the if statement superfluous.
+
+8. The efficiency differences discussed above in the context of the Emacs execution
+are negligible since the number of lines are similar (101, 103, and 107). Some of the instructions
+are more efficient than others, and more lines do not necessarily translate to being less
+efficient which causes efficiency to be obscure.
